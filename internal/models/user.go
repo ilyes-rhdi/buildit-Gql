@@ -16,6 +16,9 @@ type User struct {
 
 	Image  string `gorm:"not null;default:'uploads/profiles/default.jpg'"`
 	Bio    string `gorm:"not null;default:''"`
+	Adress        string `gorm:"not null;default:''"`
+	Phone         string `gorm:"not null;default:''"`
+	ExternalLinks string `gorm:"not null;default:''"`
 	Gender bool   `gorm:"not null;default:false"`
 	BgImg  string `gorm:"not null;default:'uploads/bgs/default.jpg'"`
 

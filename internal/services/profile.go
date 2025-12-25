@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 
-	"github.com/ilyes-rhdi/buildit-Gql/internal/database"
 	"github.com/ilyes-rhdi/buildit-Gql/internal/models"
 	"github.com/ilyes-rhdi/buildit-Gql/pkg/logger"
 	"github.com/ilyes-rhdi/buildit-Gql/pkg/types"
@@ -12,8 +11,6 @@ import (
 )
 
 type ProfileService struct{}
-
-var db = database.GetDB()
 
 func NewProfileService() *ProfileService {
 	return &ProfileService{}
@@ -28,7 +25,7 @@ func (s *ProfileService) GetUser(id string) (*models.User, error) {
 	ctx := context.Background()
 
 	var user models.User
-	if err := db.WithContext(ctx).
+	if err := getDB().WithContext(ctx).
 		Omit("password").
 		First(&user, "id = ?", id).Error; err != nil {
 		return nil, err
@@ -46,7 +43,7 @@ func (s *ProfileService) GetUserByEmail(email string) (*models.User, error) {
 	ctx := context.Background()
 
 	var user models.User
-	if err := db.WithContext(ctx).
+	if err := getDB().WithContext(ctx).
 		Omit("password").
 		Where("email = ?", email).
 		First(&user).Error; err != nil {
@@ -66,7 +63,7 @@ func (s *ProfileService) SearchByName(name string) ([]models.User, error) {
 
 	var users []models.User
 	// Si tu es sur Postgres et tu veux case-insensitive, remplace LIKE par ILIKE.
-	if err := db.WithContext(ctx).
+	if err := getDB().WithContext(ctx).
 		Omit("password").
 		Where("name LIKE ?", "%"+name+"%").
 		Find(&users).Error; err != nil {
@@ -94,7 +91,7 @@ func (s *ProfileService) UpdateUser(id string, payload types.ProfileUpdate) (*mo
 		"external_links": payload.Links,
 	}
 
-	if err := db.WithContext(ctx).
+	if err := getDB().WithContext(ctx).
 		Model(&models.User{}).
 		Where("id = ?", id).
 		Updates(updates).Error; err != nil {
@@ -107,7 +104,7 @@ func (s *ProfileService) UpdateUser(id string, payload types.ProfileUpdate) (*mo
 func (s *ProfileService) UpdateUserImage(id string, path string) (string, error) {
 	ctx := context.Background()
 
-	res := db.WithContext(ctx).
+	res := getDB().WithContext(ctx).
 		Model(&models.User{}).
 		Where("id = ?", id).
 		Update("image", path)
@@ -124,7 +121,7 @@ func (s *ProfileService) UpdateUserImage(id string, path string) (string, error)
 func (s *ProfileService) UpdateUserBg(id string, path string) (string, error) {
 	ctx := context.Background()
 
-	res := db.WithContext(ctx).
+	res := getDB().WithContext(ctx).
 		Model(&models.User{}).
 		Where("id = ?", id).
 		Update("bg_img", path)
@@ -146,7 +143,7 @@ func (s *ProfileService) DeleteUser(id string) (string, error) {
 
 	ctx := context.Background()
 
-	res := db.WithContext(ctx).Delete(&models.User{}, "id = ?", id)
+	res := getDB().WithContext(ctx).Delete(&models.User{}, "id = ?", id)
 	if res.Error != nil {
 		return "", res.Error
 	}

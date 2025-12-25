@@ -7,13 +7,11 @@ WORKDIR /app
 # Copies everything from your root directory into /app
 COPY . .
  
-RUN go run github.com/steebchen/prisma-client-go generate --schema ./prisma
 
 
 # Installs Go dependencies
 RUN go mod tidy
  
-RUN go run github.com/steebchen/prisma-client-go generate --schema ./prisma
 
 # Builds your app with optional configuration
 RUN go build ./cmd/server

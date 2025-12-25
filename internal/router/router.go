@@ -26,15 +26,22 @@ func init() {
 	})
 
 }
-
 func SetRoutes(e *echo.Echo) {
-	sse := sse.NewNotifier()
+	notifier := sse.NewNotifier()
+
 	e.GET("/", func(c echo.Context) error {
-		return c.String(http.StatusOK, "Server Working check the docs at /swagger/index.html or the graphql playground at /graphql")
+		return c.String(http.StatusOK, "Server Working. GraphQL: /graphql")
 	})
-	e.GET("/notifications", sse.NotificationHandler)
+
+	e.GET("/notifications", notifier.NotificationHandler)
+
 	v1 := e.Group("/api/v1")
 	AuthRoutes(v1)
 	profileRoutes(v1)
 	OAuthRoutes(v1)
+
+	// optionnels
+	// UploadRoutes(v1)
+	// HealthRoutes(v1)
 }
+

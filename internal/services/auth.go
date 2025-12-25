@@ -3,13 +3,11 @@ package services
 import (
 	"context"
 	"errors"
-	"github.com/ilyes-rhdi/buildit-Gql/internal/database"
+
 	"github.com/ilyes-rhdi/buildit-Gql/internal/models"
 	"github.com/ilyes-rhdi/buildit-Gql/pkg/utils"
 	"gorm.io/gorm"
 )
-
-var db = database.GetDB()
 
 type AuthService struct{}
 
@@ -37,7 +35,7 @@ func (s *AuthService) CreateUser(name string, email string, password string, gen
 		// Active false par défaut si ton model le définit
 	}
 
-	if err := db.WithContext(ctx).Create(u).Error; err != nil {
+	if err := getDB().WithContext(ctx).Create(u).Error; err != nil {
 		return nil, err
 	}
 
@@ -48,7 +46,7 @@ func (s *AuthService) CheckUser(email string, password string) (*models.User, er
 	ctx := context.Background()
 
 	var u models.User
-	if err := db.WithContext(ctx).Where("email = ?", email).First(&u).Error; err != nil {
+	if err := getDB().WithContext(ctx).Where("email = ?", email).First(&u).Error; err != nil {
 		return nil, errors.New("wrong credentials")
 	}
 
@@ -63,7 +61,7 @@ func (s *AuthService) GetUserByEmail(email string) (*models.User, error) {
 	ctx := context.Background()
 
 	var u models.User
-	err := db.WithContext(ctx).Where("email = ?", email).First(&u).Error
+	err := getDB().WithContext(ctx).Where("email = ?", email).First(&u).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
@@ -77,7 +75,7 @@ func (s *AuthService) GetUserByEmail(email string) (*models.User, error) {
 func (s *AuthService) ActivateUser(userID string) error {
 	ctx := context.Background()
 
-	res := db.WithContext(ctx).Model(&models.User{}).
+	res := getDB().WithContext(ctx).Model(&models.User{}).
 		Where("id = ?", userID).
 		Update("active", true)
 
