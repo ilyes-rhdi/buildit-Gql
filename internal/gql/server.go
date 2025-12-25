@@ -3,7 +3,7 @@ package gql
 import (
 	"github.com/graphql-go/handler"
 	"github.com/labstack/echo/v4"
-	"github.com/lai0xn/squid-tech/internal/middlewares/gql"
+	"github.com/ilyes-rhdi/buildit-Gql/internal/middlewares/gql"
 )
 
 func Execute(e *echo.Echo) {

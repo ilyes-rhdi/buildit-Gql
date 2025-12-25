@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/ilyes-rhdi/buildit-Gql/internal/services"
+	"github.com/ilyes-rhdi/buildit-Gql/pkg/types"
 	"github.com/labstack/echo/v4"
-	"github.com/lai0xn/squid-tech/internal/services"
-	"github.com/lai0xn/squid-tech/pkg/types"
 )
 
 type profileHandler struct {
@@ -33,7 +33,7 @@ func (h *profileHandler) Get(c echo.Context) error {
 	id := c.Param("id")
 	user, err := h.srv.GetUser(id)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, err)
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
 	return c.JSON(http.StatusOK, user)
 }
@@ -49,19 +49,24 @@ func (h *profileHandler) Get(c echo.Context) error {
 func (h *profileHandler) Search(c echo.Context) error {
 	email := c.QueryParam("email")
 	name := c.QueryParam("name")
-	var err error
-	var user interface{}
+
 	if email == "" && name == "" {
 		return echo.NewHTTPError(http.StatusBadRequest, "at least provide one query param")
 	}
-	if email == "" {
-		user, err = h.srv.SearchByName(name)
+
+	if email != "" {
+		user, err := h.srv.GetUserByEmail(email)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+		}
+		return c.JSON(http.StatusOK, user)
 	}
-	user, err = h.srv.GetUserByEmail(email)
+
+	users, err := h.srv.SearchByName(name)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, err)
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
-	return c.JSON(http.StatusOK, user)
+	return c.JSON(http.StatusOK, users)
 }
 
 // @Summary	Change Profile Image endpoint
@@ -74,23 +79,46 @@ func (h *profileHandler) Search(c echo.Context) error {
 // @Router		/profiles/profile/pfp [patch]
 func (h *profileHandler) ChangePfp(c echo.Context) error {
 	file, err := c.FormFile("image")
-	user := c.Get("user").(*jwt.Token)
-	claims := user.Claims.(*types.Claims)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
-	path := fmt.Sprintf("public/uploads/profiles/%s", filepath.Clean(file.Filename))
-	f, err := os.Create(path)
+
+	userToken := c.Get("user").(*jwt.Token)
+	claims := userToken.Claims.(*types.Claims)
+
+	// Ensure directory exists
+	dir := "public/uploads/profiles"
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+
+	filename := filepath.Base(file.Filename)
+	path := fmt.Sprintf("%s/%s", dir, filename)
+
+	dst, err := os.Create(path)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
+	defer dst.Close()
+
 	src, err := file.Open()
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
-	io.Copy(f, src)
-	_, err = h.srv.UpdateUserImage(claims.ID, path)
-	return c.JSON(http.StatusOK, user)
+	defer src.Close()
+
+	if _, err := io.Copy(dst, src); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+
+	updatedPath, err := h.srv.UpdateUserImage(claims.ID, path)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+
+	return c.JSON(http.StatusOK, types.Response{
+		"image": updatedPath,
+	})
 }
 
 // @Summary	Change Profile Bg Image endpoint
@@ -103,23 +131,46 @@ func (h *profileHandler) ChangePfp(c echo.Context) error {
 // @Router		/profiles/profile/bg [patch]
 func (h *profileHandler) ChangeBg(c echo.Context) error {
 	file, err := c.FormFile("image")
-	user := c.Get("user").(*jwt.Token)
-	claims := user.Claims.(*types.Claims)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
-	path := fmt.Sprintf("public/uploads/bgs/%s", filepath.Clean(file.Filename))
-	f, err := os.Create(path)
+
+	userToken := c.Get("user").(*jwt.Token)
+	claims := userToken.Claims.(*types.Claims)
+
+	// Ensure directory exists
+	dir := "public/uploads/bgs"
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+
+	filename := filepath.Base(file.Filename)
+	path := fmt.Sprintf("%s/%s", dir, filename)
+
+	dst, err := os.Create(path)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
+	defer dst.Close()
+
 	src, err := file.Open()
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
-	io.Copy(f, src)
-	_, err = h.srv.UpdateUserBg(claims.ID, path)
-	return c.JSON(http.StatusOK, user)
+	defer src.Close()
+
+	if _, err := io.Copy(dst, src); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+
+	updatedPath, err := h.srv.UpdateUserBg(claims.ID, path)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+
+	return c.JSON(http.StatusOK, types.Response{
+		"bgImg": updatedPath,
+	})
 }
 
 // @Summary	Update Profile endpoint
@@ -131,43 +182,28 @@ func (h *profileHandler) ChangeBg(c echo.Context) error {
 // @Success	200
 // @Router		/profiles/profile/update [patch]
 func (h *profileHandler) Update(c echo.Context) error {
-	user := c.Get("user").(*jwt.Token)
-	claims := user.Claims.(*types.Claims)
-	u, err := h.srv.GetUser(claims.ID)
-	fmt.Println(claims.ID)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
-	}
-	adress, ok := u.Adress()
-	if !ok {
-		adress = ""
-	}
-	links, ok := u.ExternalLinks()
-	if !ok {
-		adress = ""
-	}
-	phone, ok := u.Phone()
-	if !ok {
-		adress = ""
-	}
-	var payload = types.ProfileUpdate{
-		Email:  claims.Email,
-		Name:   claims.Name,
-		Bio:    u.Bio,
-		Phone:  phone,
-		Adress: adress,
-		Links:  links,
-	}
-	err = c.Bind(&payload)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	userToken := c.Get("user").(*jwt.Token)
+	claims := userToken.Claims.(*types.Claims)
 
+	u, err := h.srv.GetUser(claims.ID)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
-	fmt.Println(payload)
+
+	// Avec GORM, ces champs sont normalement des strings directes (pas des optionnels Prisma).
+	payload := types.ProfileUpdate{
+		Email:  u.Email,
+		Name:   u.Name,
+		Bio:    u.Bio,
+	}
+
+	if err := c.Bind(&payload); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+
 	updated, err := h.srv.UpdateUser(claims.ID, payload)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
-
 	}
 	return c.JSON(http.StatusOK, updated)
 }
@@ -180,8 +216,9 @@ func (h *profileHandler) Update(c echo.Context) error {
 // @Success	200
 // @Router		/profiles/profile [get]
 func (h *profileHandler) CurrentUser(c echo.Context) error {
-	user := c.Get("user").(*jwt.Token)
-	claims := user.Claims.(*types.Claims)
+	userToken := c.Get("user").(*jwt.Token)
+	claims := userToken.Claims.(*types.Claims)
+
 	u, err := h.srv.GetUser(claims.ID)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
@@ -198,14 +235,15 @@ func (h *profileHandler) CurrentUser(c echo.Context) error {
 // @Success	200
 // @Router		/profiles/profile/delete [delete]
 func (h *profileHandler) Delete(c echo.Context) error {
-	user := c.Get("user").(*jwt.Token)
-	claims := user.Claims.(*types.Claims)
-	u, err := h.srv.DeleteUser(claims.ID)
+	userToken := c.Get("user").(*jwt.Token)
+	claims := userToken.Claims.(*types.Claims)
+
+	deletedID, err := h.srv.DeleteUser(claims.ID)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
 
 	return c.JSON(http.StatusOK, types.Response{
-		"message": fmt.Sprintf("user deleted id : %s", u),
+		"message": fmt.Sprintf("user deleted id : %s", deletedID),
 	})
 }

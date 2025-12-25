@@ -4,7 +4,7 @@ import (
 	"context"
 	"os"
 
-	"github.com/lai0xn/squid-tech/pkg/logger"
+	"github.com/ilyes-rhdi/buildit-Gql/pkg/logger"
 	"github.com/redis/go-redis/v9"
 )
 

@@ -2,7 +2,7 @@ package utils
 
 import (
 	"github.com/go-playground/validator/v10"
-	"github.com/lai0xn/squid-tech/pkg/types"
+	"github.com/ilyes-rhdi/buildit-Gql/pkg/types"
 )
 
 func NewValidationError(errors validator.ValidationErrors) types.ValidationError {

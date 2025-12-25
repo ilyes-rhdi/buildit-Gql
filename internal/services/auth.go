@@ -3,12 +3,13 @@ package services
 import (
 	"context"
 	"errors"
-	"fmt"
-
-	"github.com/lai0xn/squid-tech/pkg/utils"
-	"github.com/lai0xn/squid-tech/prisma"
-	"github.com/lai0xn/squid-tech/prisma/db"
+	"github.com/ilyes-rhdi/buildit-Gql/internal/database"
+	"github.com/ilyes-rhdi/buildit-Gql/internal/models"
+	"github.com/ilyes-rhdi/buildit-Gql/pkg/utils"
+	"gorm.io/gorm"
 )
+
+var db = database.GetDB()
 
 type AuthService struct{}
 
@@ -16,82 +17,69 @@ func NewAuthService() *AuthService {
 	return &AuthService{}
 }
 
-func (s *AuthService) CreateUser(name string, email string, password string, gender bool) (*db.UserModel, error) {
+func (s *AuthService) CreateUser(name string, email string, password string, gender bool) (*models.User, error) {
 	ctx := context.Background()
 
-	encrypted_password, err := utils.Encrypt(password)
+	encryptedPassword, err := utils.Encrypt(password)
 	if err != nil {
 		return nil, err
 	}
-	result, err := prisma.Client.User.CreateOne(
-		db.User.Email.Set(email),
-		db.User.Name.Set(name),
-		db.User.Bio.Set(""),
-		db.User.Image.Set("uploads/profiles/default.jpg"),
-		db.User.Gender.Set(gender),
-		db.User.Password.Set(encrypted_password),
-		db.User.BgImg.Set("uploads/bgs/default.jpg"),
-	).Exec(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return result, nil
 
+	u := &models.User{
+		Name:     name,
+		Email:    email,
+		Password: encryptedPassword,
+		Gender:   gender,
+
+		Bio:   "",
+		Image: "uploads/profiles/default.jpg",
+		BgImg: "uploads/bgs/default.jpg",
+		// Active false par défaut si ton model le définit
+	}
+
+	if err := db.WithContext(ctx).Create(u).Error; err != nil {
+		return nil, err
+	}
+
+	return u, nil
 }
 
-func (s *AuthService) CheckUser(email string, password string) (*db.UserModel, error) {
+func (s *AuthService) CheckUser(email string, password string) (*models.User, error) {
 	ctx := context.Background()
-	client := db.NewClient()
-	if err := client.Prisma.Connect(); err != nil {
-		panic(err)
-	}
 
-	user, err := prisma.Client.User.FindUnique(
-		db.User.Email.Equals(email),
-	).Exec(ctx)
-	if err != nil {
+	var u models.User
+	if err := db.WithContext(ctx).Where("email = ?", email).First(&u).Error; err != nil {
 		return nil, errors.New("wrong credentials")
 	}
-	fmt.Println(user.Email)
-	enc_pass := user.Password
-	err = utils.CheckPassword(enc_pass, password)
-	if err != nil {
+
+	if err := utils.CheckPassword(u.Password, password); err != nil {
 		return nil, errors.New("wrong credentials")
 	}
-	return user, nil
 
+	return &u, nil
 }
 
-func (s *AuthService) GetUserByEmail(email string) (*db.UserModel, error) {
+func (s *AuthService) GetUserByEmail(email string) (*models.User, error) {
 	ctx := context.Background()
-	client := db.NewClient()
-	if err := client.Prisma.Connect(); err != nil {
-		return nil, err
-	}
 
-	user, err := client.User.FindUnique(
-		db.User.Email.Equals(email),
-	).Exec(ctx)
+	var u models.User
+	err := db.WithContext(ctx).Where("email = ?", email).First(&u).Error
 	if err != nil {
-		if errors.Is(err, db.ErrNotFound) {
-			return nil, nil // User not found
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
 		}
-		return nil, err // Other errors
+		return nil, err
 	}
 
-	return user, nil // User found
+	return &u, nil
 }
 
 func (s *AuthService) ActivateUser(userID string) error {
 	ctx := context.Background()
 
-	_, err := prisma.Client.User.FindUnique(
-		db.User.ID.Equals(userID),
-	).Update(
-		db.User.Active.Set(true),
-	).Exec(ctx)
-	if err != nil {
-		return err
-	}
-	return nil
+	res := db.WithContext(ctx).Model(&models.User{}).
+		Where("id = ?", userID).
+		Update("active", true)
+
+	return res.Error
 }

@@ -4,8 +4,8 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/lai0xn/squid-tech/config"
-	"github.com/lai0xn/squid-tech/pkg/types"
+	"github.com/ilyes-rhdi/buildit-Gql/config"
+	"github.com/ilyes-rhdi/buildit-Gql/pkg/types"
 )
 
 func GenerateJWT(id string, email string, name string) (string, error) {

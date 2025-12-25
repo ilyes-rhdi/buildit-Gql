@@ -2,8 +2,8 @@ package gql
 
 import (
 	"github.com/graphql-go/graphql"
-	"github.com/lai0xn/squid-tech/internal/gql/mutations"
-	"github.com/lai0xn/squid-tech/internal/gql/queries"
+	"github.com/ilyes-rhdi/buildit-Gql/internal/gql/mutations"
+	"github.com/ilyes-rhdi/buildit-Gql/internal/gql/queries"
 )
 
 var Schema, _ = graphql.NewSchema(graphql.SchemaConfig{

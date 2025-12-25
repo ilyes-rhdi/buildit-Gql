@@ -4,8 +4,8 @@ import (
 	"os"
 
 	"github.com/joho/godotenv"
-	"github.com/lai0xn/squid-tech/pkg/logger"
-	"github.com/lai0xn/squid-tech/pkg/types"
+	"github.com/ilyes-rhdi/buildit-Gql/pkg/logger"
+	"github.com/ilyes-rhdi/buildit-Gql/pkg/types"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/facebook"
 	"golang.org/x/oauth2/google"

@@ -4,7 +4,7 @@ import (
 	"errors"
 
 	"github.com/graphql-go/graphql"
-	"github.com/lai0xn/squid-tech/pkg/types"
+	"github.com/ilyes-rhdi/buildit-Gql/pkg/types"
 )
 
 func IsAuthenticated(p graphql.ResolveParams) (string, error) {

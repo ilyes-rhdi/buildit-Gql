@@ -6,9 +6,9 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	echojwt "github.com/labstack/echo-jwt/v4"
 	"github.com/labstack/echo/v4"
-	"github.com/lai0xn/squid-tech/config"
-	"github.com/lai0xn/squid-tech/internal/sse"
-	"github.com/lai0xn/squid-tech/pkg/types"
+	"github.com/ilyes-rhdi/buildit-Gql/config"
+	"github.com/ilyes-rhdi/buildit-Gql/internal/sse"
+	"github.com/ilyes-rhdi/buildit-Gql/pkg/types"
 )
 
 var (

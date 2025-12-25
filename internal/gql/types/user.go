@@ -1,8 +1,6 @@
 package types
 
 import (
-	"time"
-
 	"github.com/graphql-go/graphql"
 )
 
@@ -39,13 +37,3 @@ var UserType = graphql.NewObject(graphql.ObjectConfig{
 	},
 })
 
-type User struct {
-	ID      string    `json:"id"`
-	Name    string    `json:"name"`
-	Phone   string    `json:"phone"`
-	Email   string    `json:"email"`
-	Address string    `json:"address"`
-	Image   string    `json:"image"`
-	Joined  time.Time `json:"joinedAt"`
-	Gender  bool      `json:"gender"`
-}

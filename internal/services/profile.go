@@ -2,68 +2,81 @@ package services
 
 import (
 	"context"
-	"fmt"
+	"errors"
 
-	"github.com/lai0xn/squid-tech/pkg/logger"
-	"github.com/lai0xn/squid-tech/pkg/types"
-	"github.com/lai0xn/squid-tech/prisma"
-	"github.com/lai0xn/squid-tech/prisma/db"
+	"github.com/ilyes-rhdi/buildit-Gql/internal/database"
+	"github.com/ilyes-rhdi/buildit-Gql/internal/models"
+	"github.com/ilyes-rhdi/buildit-Gql/pkg/logger"
+	"github.com/ilyes-rhdi/buildit-Gql/pkg/types"
+	"gorm.io/gorm"
 )
 
 type ProfileService struct{}
+
+var db = database.GetDB()
 
 func NewProfileService() *ProfileService {
 	return &ProfileService{}
 }
 
-func (s *ProfileService) GetUser(id string) (*db.UserModel, error) {
+func (s *ProfileService) GetUser(id string) (*models.User, error) {
 	logger.LogInfo().Fields(map[string]interface{}{
 		"query":  "get profile",
 		"params": id,
 	}).Msg("DB Query")
+
 	ctx := context.Background()
-	user, err := prisma.Client.User.FindUnique(
-		db.User.ID.Equals(id),
-	).Omit(db.User.Password.Field()).With(db.User.Events.Fetch(), db.User.Posts.Fetch(), db.User.Following.Fetch()).Exec(ctx)
-	if err != nil {
+
+	var user models.User
+	if err := db.WithContext(ctx).
+		Omit("password").
+		First(&user, "id = ?", id).Error; err != nil {
 		return nil, err
 	}
-	return user, nil
+
+	return &user, nil
 }
 
-func (s *ProfileService) GetUserByEmail(email string) (*db.UserModel, error) {
+func (s *ProfileService) GetUserByEmail(email string) (*models.User, error) {
 	logger.LogInfo().Fields(map[string]interface{}{
 		"query":  "search profile",
 		"params": email,
 	}).Msg("DB Query")
 
 	ctx := context.Background()
-	user, err := prisma.Client.User.FindUnique(
-		db.User.Email.Equals(email),
-	).Omit(db.User.Password.Field()).Exec(ctx)
-	if err != nil {
+
+	var user models.User
+	if err := db.WithContext(ctx).
+		Omit("password").
+		Where("email = ?", email).
+		First(&user).Error; err != nil {
 		return nil, err
 	}
-	return user, nil
+
+	return &user, nil
 }
 
-func (s *ProfileService) SearchByName(name string) ([]db.UserModel, error) {
+func (s *ProfileService) SearchByName(name string) ([]models.User, error) {
 	logger.LogInfo().Fields(map[string]interface{}{
 		"query":  "search profile",
 		"params": name,
 	}).Msg("DB Query")
 
 	ctx := context.Background()
-	users, err := prisma.Client.User.FindMany(
-		db.User.Name.Contains(name),
-	).Omit(db.User.Password.Field()).Exec(ctx)
-	if err != nil {
+
+	var users []models.User
+	// Si tu es sur Postgres et tu veux case-insensitive, remplace LIKE par ILIKE.
+	if err := db.WithContext(ctx).
+		Omit("password").
+		Where("name LIKE ?", "%"+name+"%").
+		Find(&users).Error; err != nil {
 		return nil, err
 	}
+
 	return users, nil
 }
 
-func (s *ProfileService) UpdateUser(id string, payload types.ProfileUpdate) (*db.UserModel, error) {
+func (s *ProfileService) UpdateUser(id string, payload types.ProfileUpdate) (*models.User, error) {
 	logger.LogInfo().Fields(map[string]interface{}{
 		"query":  "update profile",
 		"id":     id,
@@ -71,48 +84,58 @@ func (s *ProfileService) UpdateUser(id string, payload types.ProfileUpdate) (*db
 	}).Msg("DB Query")
 
 	ctx := context.Background()
-	users, err := prisma.Client.User.FindUnique(
-		db.User.ID.Equals(id),
-	).Omit(db.User.Password.Field()).Update(
-		db.User.Email.Set(payload.Email),
-		db.User.Name.Set(payload.Name),
-		db.User.Bio.Set(payload.Bio),
-		db.User.Adress.Set(payload.Adress),
-		db.User.Phone.Set(payload.Phone),
-		db.User.ExternalLinks.Set(payload.Links),
-	).Exec(ctx)
-	if err != nil {
+
+	updates := map[string]any{
+		"email":          payload.Email,
+		"name":           payload.Name,
+		"bio":            payload.Bio,
+		"adress":         payload.Adress,
+		"phone":          payload.Phone,
+		"external_links": payload.Links,
+	}
+
+	if err := db.WithContext(ctx).
+		Model(&models.User{}).
+		Where("id = ?", id).
+		Updates(updates).Error; err != nil {
 		return nil, err
 	}
-	return users, nil
+
+	return s.GetUser(id)
 }
 
 func (s *ProfileService) UpdateUserImage(id string, path string) (string, error) {
-	fmt.Println(id)
 	ctx := context.Background()
-	user, err := prisma.Client.User.FindUnique(
-		db.User.ID.Equals(id),
-	).Update(
-		db.User.Image.Set(path),
-	).Exec(ctx)
-	if err != nil {
-		return "", err
+
+	res := db.WithContext(ctx).
+		Model(&models.User{}).
+		Where("id = ?", id).
+		Update("image", path)
+	if res.Error != nil {
+		return "", res.Error
 	}
-	return user.Image, nil
+	if res.RowsAffected == 0 {
+		return "", gorm.ErrRecordNotFound
+	}
+
+	return path, nil
 }
 
 func (s *ProfileService) UpdateUserBg(id string, path string) (string, error) {
-	fmt.Println(id)
 	ctx := context.Background()
-	user, err := prisma.Client.User.FindUnique(
-		db.User.ID.Equals(id),
-	).Update(
-		db.User.BgImg.Set(path),
-	).Exec(ctx)
-	if err != nil {
-		return "", err
+
+	res := db.WithContext(ctx).
+		Model(&models.User{}).
+		Where("id = ?", id).
+		Update("bg_img", path)
+	if res.Error != nil {
+		return "", res.Error
 	}
-	return user.Image, nil
+	if res.RowsAffected == 0 {
+		return "", gorm.ErrRecordNotFound
+	}
+
+	return path, nil
 }
 
 func (s *ProfileService) DeleteUser(id string) (string, error) {
@@ -122,12 +145,14 @@ func (s *ProfileService) DeleteUser(id string) (string, error) {
 	}).Msg("DB Query")
 
 	ctx := context.Background()
-	deleted, err := prisma.Client.User.FindUnique(
-		db.User.ID.Equals(id),
-	).Delete().Exec(ctx)
-	if err != nil {
-		return "", nil
+
+	res := db.WithContext(ctx).Delete(&models.User{}, "id = ?", id)
+	if res.Error != nil {
+		return "", res.Error
 	}
-	fmt.Println(deleted.ID)
-	return deleted.ID, nil
+	if res.RowsAffected == 0 {
+		return "", errors.New("user not found")
+	}
+
+	return id, nil
 }

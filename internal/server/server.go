@@ -3,10 +3,10 @@ package server
 import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
-	"github.com/lai0xn/squid-tech/internal/gql"
-	middlewares "github.com/lai0xn/squid-tech/internal/middlewares/rest"
-	"github.com/lai0xn/squid-tech/internal/router"
-	"github.com/lai0xn/squid-tech/pkg/logger"
+	"github.com/ilyes-rhdi/buildit-Gql/internal/gql"
+	middlewares "github.com/ilyes-rhdi/buildit-Gql/internal/middlewares/rest"
+	"github.com/ilyes-rhdi/buildit-Gql/internal/router"
+	"github.com/ilyes-rhdi/buildit-Gql/pkg/logger"
 	echoSwagger "github.com/swaggo/echo-swagger"
 )
 

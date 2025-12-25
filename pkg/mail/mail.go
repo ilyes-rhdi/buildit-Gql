@@ -9,8 +9,8 @@ import (
 	"net/smtp"
 	"time"
 
-	"github.com/lai0xn/squid-tech/config"
-	"github.com/lai0xn/squid-tech/pkg/redis"
+	"github.com/ilyes-rhdi/buildit-Gql/config"
+	"github.com/ilyes-rhdi/buildit-Gql/pkg/redis"
 	r "github.com/redis/go-redis/v9"
 )
 

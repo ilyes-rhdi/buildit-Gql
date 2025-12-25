@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/lai0xn/squid-tech/pkg/types"
-	"github.com/lai0xn/squid-tech/pkg/utils"
+	"github.com/ilyes-rhdi/buildit-Gql/pkg/types"
+	"github.com/ilyes-rhdi/buildit-Gql/pkg/utils"
 )
 
 func HeaderMiddleware(next http.Handler) http.HandlerFunc {

@@ -2,7 +2,7 @@ package router
 
 import (
 	"github.com/labstack/echo/v4"
-	"github.com/lai0xn/squid-tech/internal/handlers"
+	"github.com/ilyes-rhdi/buildit-Gql/internal/handlers"
 )
 
 func OAuthRoutes(e *echo.Group) {

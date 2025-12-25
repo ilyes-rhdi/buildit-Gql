@@ -5,10 +5,10 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
-	"github.com/lai0xn/squid-tech/internal/services"
-	"github.com/lai0xn/squid-tech/pkg/mail"
-	"github.com/lai0xn/squid-tech/pkg/types"
-	"github.com/lai0xn/squid-tech/pkg/utils"
+	"github.com/ilyes-rhdi/buildit-Gql/internal/services"
+	"github.com/ilyes-rhdi/buildit-Gql/pkg/mail"
+	"github.com/ilyes-rhdi/buildit-Gql/pkg/types"
+	"github.com/ilyes-rhdi/buildit-Gql/pkg/utils"
 )
 
 type authHandler struct {
