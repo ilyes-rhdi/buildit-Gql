@@ -38,7 +38,6 @@ func SetRoutes(e *echo.Echo) {
 	v1 := e.Group("/api/v1")
 	AuthRoutes(v1)
 	profileRoutes(v1)
-	OAuthRoutes(v1)
 
 	// optionnels
 	// UploadRoutes(v1)

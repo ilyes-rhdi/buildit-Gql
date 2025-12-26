@@ -12,25 +12,22 @@ import (
 
 type BlockService struct {
 	pg *PageService
-	ws *WorkspaceService
 }
 
 func NewBlockService() *BlockService {
 	return &BlockService{
 		pg: NewPageService(),
-		ws: NewWorkspaceService(),
 	}
 }
 
 func (s *BlockService) CreateBlock(pageID, requesterID string, parentBlockID *string, blockType models.BlockType, order *int, data any) (*models.Block, error) {
 	ctx := context.Background()
 
-	// check accès via page -> workspace
-	p, err := s.pg.GetPage(pageID, requesterID)
+	// access check via page
+	_, err := s.pg.GetPage(pageID, requesterID)
 	if err != nil {
 		return nil, err
 	}
-	_ = p
 
 	b := &models.Block{
 		PageID:        pageID,
@@ -43,7 +40,7 @@ func (s *BlockService) CreateBlock(pageID, requesterID string, parentBlockID *st
 	if order != nil {
 		b.Order = *order
 	} else {
-		// order auto = max(order)+1 parmi siblings
+		// order auto = max(order)+1 among siblings
 		var maxOrder int
 		q := getDB().WithContext(ctx).Model(&models.Block{}).Where("page_id = ?", pageID)
 		if parentBlockID == nil {
@@ -78,7 +75,7 @@ func (s *BlockService) GetBlock(blockID, requesterID string) (*models.Block, err
 		return nil, err
 	}
 
-	// check accès via page
+	// access check via page
 	_, err := s.pg.GetPage(b.PageID, requesterID)
 	if err != nil {
 		return nil, err
@@ -90,7 +87,7 @@ func (s *BlockService) GetBlock(blockID, requesterID string) (*models.Block, err
 func (s *BlockService) ListBlocks(pageID, requesterID string, parentBlockID *string) ([]models.Block, error) {
 	ctx := context.Background()
 
-	// check accès via page
+	// access check via page
 	_, err := s.pg.GetPage(pageID, requesterID)
 	if err != nil {
 		return nil, err
@@ -110,12 +107,8 @@ func (s *BlockService) ListBlocks(pageID, requesterID string, parentBlockID *str
 	return blocks, nil
 }
 
-type UpdateBlockInput struct {
-	Order *int
-	Data  any
-}
-
-func (s *BlockService) UpdateBlock(blockID, requesterID string, in UpdateBlockInput) (*models.Block, error) {
+// UpdateBlock updates (type, data). GraphQL requires `type` non-null.
+func (s *BlockService) UpdateBlock(blockID, requesterID string, blockType models.BlockType, data any) (*models.Block, error) {
 	ctx := context.Background()
 
 	b, err := s.GetBlock(blockID, requesterID)
@@ -124,11 +117,11 @@ func (s *BlockService) UpdateBlock(blockID, requesterID string, in UpdateBlockIn
 	}
 
 	updates := map[string]any{}
-	if in.Order != nil {
-		updates["order"] = *in.Order
+	if blockType != "" {
+		updates["type"] = blockType
 	}
-	if in.Data != nil {
-		buf, err := json.Marshal(in.Data)
+	if data != nil {
+		buf, err := json.Marshal(data)
 		if err != nil {
 			return nil, err
 		}
@@ -150,7 +143,8 @@ func (s *BlockService) UpdateBlock(blockID, requesterID string, in UpdateBlockIn
 	return b, nil
 }
 
-func (s *BlockService) MoveBlock(blockID, requesterID string, newParentBlockID *string, newOrder int) (*models.Block, error) {
+// MoveBlock moves a block to another page / parent and reorders it.
+func (s *BlockService) MoveBlock(blockID, requesterID, newPageID string, newParentBlockID *string, newOrder int) (*models.Block, error) {
 	ctx := context.Background()
 
 	b, err := s.GetBlock(blockID, requesterID)
@@ -158,27 +152,33 @@ func (s *BlockService) MoveBlock(blockID, requesterID string, newParentBlockID *
 		return nil, err
 	}
 
-	// transaction pour éviter incohérence d'order
+	// access check on target page
+	_, err = s.pg.GetPage(newPageID, requesterID)
+	if err != nil {
+		return nil, err
+	}
+
 	err = getDB().WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		// shift siblings pour faire de la place (option simple)
-		q := tx.Model(&models.Block{}).Where("page_id = ?", b.PageID)
+		// shift siblings in target list to make room
+		q := tx.Model(&models.Block{}).Where("page_id = ?", newPageID)
 		if newParentBlockID == nil {
 			q = q.Where("parent_block_id IS NULL")
 		} else {
 			q = q.Where("parent_block_id = ?", *newParentBlockID)
 		}
-		if err := q.Where(`"order" >= ?`, newOrder).Update(`"order"`, gorm.Expr(`"order" + 1`)).Error; err != nil {
+		if err := q.Where(`"order" >= ?`, newOrder).
+			Update(`"order"`, gorm.Expr(`"order" + 1`)).Error; err != nil {
 			return err
 		}
 
 		updates := map[string]any{
+			"page_id":         newPageID,
 			"parent_block_id": newParentBlockID,
 			"order":           newOrder,
 		}
 		if err := tx.Model(&models.Block{}).Where("id = ?", b.ID).Updates(updates).Error; err != nil {
 			return err
 		}
-
 		return nil
 	})
 	if err != nil {
@@ -199,7 +199,7 @@ func (s *BlockService) DeleteBlockTree(blockID, requesterID string) error {
 		return err
 	}
 
-	// collecte récursive en BFS (évite CTE)
+	// BFS recursion
 	toVisit := []string{b.ID}
 	all := make([]string, 0, 16)
 	seen := map[string]bool{}
@@ -229,7 +229,6 @@ func (s *BlockService) DeleteBlockTree(blockID, requesterID string) error {
 		return nil
 	}
 
-	// delete tous
 	if err := getDB().WithContext(ctx).Where("id IN ?", all).Delete(&models.Block{}).Error; err != nil {
 		return err
 	}

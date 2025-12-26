@@ -3,11 +3,11 @@ package server
 import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+
 	"github.com/ilyes-rhdi/buildit-Gql/internal/gql"
-	middlewares "github.com/ilyes-rhdi/buildit-Gql/internal/middlewares/rest"
+	restMiddlewares "github.com/ilyes-rhdi/buildit-Gql/internal/middlewares/rest"
 	"github.com/ilyes-rhdi/buildit-Gql/internal/router"
 	"github.com/ilyes-rhdi/buildit-Gql/pkg/logger"
-	echoSwagger "github.com/swaggo/echo-swagger"
 )
 
 type Server struct {
@@ -15,14 +15,10 @@ type Server struct {
 }
 
 func NewServer(port string) *Server {
-	return &Server{
-		PORT: port,
-	}
+	return &Server{PORT: port}
 }
 
 func (s *Server) Setup(e *echo.Echo) {
-
-	e.GET("/swagger/*", echoSwagger.WrapHandler)
 	e.Static("/public", "public")
 	router.SetRoutes(e)
 
@@ -34,7 +30,7 @@ func (s *Server) Setup(e *echo.Echo) {
 	}))
 
 	// logging middleware
-	e.Use(middlewares.LoggingMiddleware)
+	e.Use(restMiddlewares.LoggingMiddleware)
 }
 
 func (s *Server) Run() {

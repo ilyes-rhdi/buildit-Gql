@@ -1,7 +1,6 @@
 package main
 
 import (
-	_ "github.com/ilyes-rhdi/buildit-Gql/docs"
 	"github.com/ilyes-rhdi/buildit-Gql/internal/database"
 	"github.com/ilyes-rhdi/buildit-Gql/internal/server"
 	"github.com/ilyes-rhdi/buildit-Gql/pkg/redis"

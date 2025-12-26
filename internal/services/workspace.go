@@ -16,7 +16,7 @@ func NewWorkspaceService() *WorkspaceService {
 	return &WorkspaceService{}
 }
 
-func (s *WorkspaceService) CreateWorkspace(ownerID, name string) (*models.Workspace, error) {
+func (s *WorkspaceService) CreateWorkspace(name, ownerID string) (*models.Workspace, error) {
 	ctx := context.Background()
 	if name == "" {
 		name = "My Workspace"
@@ -219,15 +219,15 @@ func (s *WorkspaceService) RemoveMember(workspaceID, requesterID, targetUserID s
 		Delete(&models.WorkspaceMember{}).Error
 }
 
-func (s *WorkspaceService) TransferOwnership(workspaceID, requesterID, newOwnerUserID string) error {
+func (s *WorkspaceService) TransferOwnership(workspaceID, requesterID, newOwnerUserID string) (*models.Workspace, error) {
 	ctx := context.Background()
 
 	// seul owner
 	if err := s.requireOwner(ctx, workspaceID, requesterID); err != nil {
-		return err
+		return nil, err
 	}
 
-	return getDB().WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err := getDB().WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var ws models.Workspace
 		if err := tx.First(&ws, "id = ?", workspaceID).Error; err != nil {
 			return err
@@ -237,11 +237,7 @@ func (s *WorkspaceService) TransferOwnership(workspaceID, requesterID, newOwnerU
 		var newMem models.WorkspaceMember
 		err := tx.Where("workspace_id = ? AND user_id = ?", workspaceID, newOwnerUserID).First(&newMem).Error
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			newMem = models.WorkspaceMember{
-				WorkspaceID: workspaceID,
-				UserID:      newOwnerUserID,
-				Role:        models.RoleAdmin,
-			}
+			newMem = models.WorkspaceMember{WorkspaceID: workspaceID, UserID: newOwnerUserID, Role: models.RoleAdmin}
 			if err := tx.Create(&newMem).Error; err != nil {
 				return err
 			}
@@ -272,6 +268,21 @@ func (s *WorkspaceService) TransferOwnership(workspaceID, requesterID, newOwnerU
 
 		return nil
 	})
+	if err != nil {
+		return nil, err
+	}
+
+	// retourne workspace à jour
+	var ws models.Workspace
+	if err := getDB().WithContext(ctx).
+		Preload("Owner").
+		Preload("Members").
+		Preload("Members.User").
+		Preload("Pages").
+		First(&ws, "id = ?", workspaceID).Error; err != nil {
+		return nil, err
+	}
+	return &ws, nil
 }
 
 func (s *WorkspaceService) isMember(ctx context.Context, workspaceID, userID string) (bool, error) {
